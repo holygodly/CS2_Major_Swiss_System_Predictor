@@ -65,8 +65,8 @@ ROUND1_MATCHUPS = [
 ]
 
 # 外部数据文件路径
-MATCHES_FILE = 'cs2_cleaned_matches.csv'  # 历史比赛数据
-TEAM_RATINGS_FILE = '战队属性.txt'  # 战队评分数据
+MATCHES_FILE = 'data/cs2_cleaned_matches.csv'  # 历史比赛数据
+TEAM_RATINGS_FILE = 'data/hltv_ratings.txt'  # 战队评分数据
 
 # ELO系统参数
 BASE_ELO = 1000
@@ -598,7 +598,7 @@ def optimize_pickem_with_pruning(probabilities, all_simulations, max_workers=16)
     
     # 尝试从checkpoint恢复
     try:
-        with open('checkpoint_progress.json', 'r', encoding='utf-8') as f:
+        with open('output/checkpoint_progress.json', 'r', encoding='utf-8') as f:
             checkpoint = json.load(f)
             best_prediction = checkpoint['best_prediction']
             best_success_rate = checkpoint['best_success_rate']
@@ -655,7 +655,7 @@ def optimize_pickem_with_pruning(probabilities, all_simulations, max_workers=16)
                                     'sub_combo_offset': current_sub_offset,
                                     'timestamp': datetime.now().isoformat()
                                 }
-                                with open('checkpoint_progress.json', 'w', encoding='utf-8') as f:
+                                with open('output/checkpoint_progress.json', 'w', encoding='utf-8') as f:
                                     json.dump(checkpoint, f, indent=2, ensure_ascii=False)
                             except:
                                 pass
@@ -675,7 +675,7 @@ def optimize_pickem_with_pruning(probabilities, all_simulations, max_workers=16)
                                 'sub_combo_offset': current_sub_offset,
                                 'timestamp': datetime.now().isoformat()
                             }
-                            with open('checkpoint_best.json', 'w', encoding='utf-8') as f:
+                            with open('output/checkpoint_best.json', 'w', encoding='utf-8') as f:
                                 json.dump(checkpoint, f, indent=2, ensure_ascii=False)
                         except:
                             pass
@@ -822,7 +822,7 @@ def main():
         print(f"[ERROR] JSON保存失败: {e}", flush=True)
     
     try:
-        with open('optimized_report.txt', 'w', encoding='utf-8') as f:
+        with open('output/optimized_report.txt', 'w', encoding='utf-8') as f:
             f.write("=" * 80 + "\n")
             f.write("CS2 Major Pick'Em 最优预测\n")
             f.write("=" * 80 + "\n\n")
@@ -849,8 +849,8 @@ def main():
     
     print(f"[LOG] {datetime.now().strftime('%H:%M:%S')} - 所有结果已保存", flush=True)
     print("\n完成！结果已保存:")
-    print("  prediction_results.json")
-    print("  optimized_report.txt")
+    print("  output/prediction_results.json")
+    print("  output/optimized_report.txt")
     print(f"\n[LOG] {datetime.now().strftime('%H:%M:%S')} - 程序正常结束", flush=True)
 
 
