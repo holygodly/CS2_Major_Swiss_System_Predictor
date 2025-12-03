@@ -1,0 +1,21 @@
+date,team1,score1,score2,team2,tournament,format
+2025-11-21,Team A,2,1,Team B,Example Tournament 2025,bo3
+2025-11-20,Team C,16,14,Team D,Example League Season 1,bo1
+2025-11-19,Team A,3,0,Team C,Example Championship,bo5
+2025-11-18,Team B,13,16,Team D,Example Cup,bo1
+2025-11-17,Team E,2,0,Team F,Example Masters,bo3
+2025-11-16,Team G,2,1,Team H,Example Pro League,bo3
+2025-11-15,Team I,16,13,Team J,Example Open Qualifier,bo1
+2025-11-14,Team K,3,2,Team L,Example Invitational,bo5
+2025-11-13,Team M,2,0,Team N,Example Regional Finals,bo3
+2025-11-12,Team O,1,2,Team P,Example Premier Event,bo3
+2025-11-11,Team A,2,1,Team E,Example Tournament 2025,bo3
+2025-11-10,Team B,16,12,Team F,Example League Season 1,bo1
+2025-11-09,Team C,2,1,Team G,Example Championship,bo3
+2025-11-08,Team D,0,2,Team H,Example Cup,bo3
+2025-11-07,Team I,3,1,Team M,Example Masters,bo5
+2025-11-06,Team J,1,2,Team N,Example Pro League,bo3
+2025-11-05,Team K,16,14,Team O,Example Open Qualifier,bo1
+2025-11-04,Team L,2,0,Team P,Example Invitational,bo3
+2025-11-03,Team A,1,2,Team I,Example Regional Finals,bo3
+2025-11-02,Team B,2,1,Team J,Example Premier Event,bo3

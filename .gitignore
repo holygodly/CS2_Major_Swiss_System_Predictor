@@ -1,0 +1,40 @@
+# .gitignore for CS2 Major Prediction System
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Buchholz Simulator (clone separately)
+cs-buchholz-simulator/
+
+# Output files (keep structure, ignore content)
+output/*.json
+output/*.txt
+!output/.gitkeep
+
+# Temporary files
+*.tmp
+*.bak
+*.log
