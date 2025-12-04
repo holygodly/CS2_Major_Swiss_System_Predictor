@@ -4,7 +4,9 @@
 
 This project predicts CS2 Major Swiss stage results using ELO + Monte Carlo simulation + Valve's official Buchholz pairing rules.
 
-Basically runs 100k Swiss round simulations, then brute-force searches through 10 million Pick'Em combinations to find the optimal prediction. Calculates team ratings based on historical match data. Takes about 20 hours on 16 cores, supports checkpoint resume.
+Basically runs 100k Swiss round simulations, then brute-force searches through 10 million Pick'Em combinations to find the optimal prediction. Calculates team ratings based on historical match data.
+
+**v2.0 supports GPU acceleration**: Dozens of times faster than v1.0's 16-core CPU (thanks to **[Tenzray](https://github.com/Tenzray)**'s PR).
 
 ## Data Format (Must follow this format when modifying match and team data)
 
@@ -36,9 +38,36 @@ Team B,95,+180,1.06,1.07
 
 Only `team` and `Rating` columns matter. Grab latest ratings from HLTV.org if you want more accurate initial values.
 
-## How to use?
+## Usage
 
-Edit `cs2_swiss_predictor.py` (current team names are just examples, change based on actual situation):
+### 1. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+**Note:** For GPU acceleration, ensure you have CUDA installed. PyTorch will automatically use GPU if available.
+
+### 2. Configure simulation settings
+
+Edit `batchsize.yaml` to adjust performance:
+
+```yaml
+simulation:
+  num_simulations: 500  # Number of Monte Carlo simulations
+
+performance:
+  eval_batch_size: 5000  # Adjust based on GPU memory
+  save_every: 1000000    # Checkpoint frequency
+
+device:
+  use_gpu: true          # true for GPU, false for CPU
+  gpu_id: 0              # GPU device ID (usually 0)
+```
+
+### 3. Edit team data
+
+Edit `cs2_gen_preresult.py` (current team names are just examples, change based on actual situation):
 
 ```python
 TEAMS = [
@@ -56,10 +85,20 @@ ROUND1_MATCHUPS = [
 
 Manually input stage X participating teams and round 1 matchups. Order matters! ROUND1_MATCHUPS defines initial seeds for Buchholz pairing.
 
-Then run:
+### 4. Run two-step workflow
+
+**Step 1: Generate simulation data**
 
 ```bash
-python cs2_swiss_predictor.py
+python cs2_gen_preresult.py
+```
+
+This creates `output/intermediate_sim_data.json` with 100k Swiss round simulations.
+
+**Step 2: GPU-accelerated Pick'Em optimization**
+
+```bash
+python cs2_gen_final.py
 ```
 
 ## Core Logic
@@ -91,15 +130,22 @@ Total: C(16,6) × C(10,2) × C(8,2) = 10,090,080 combinations
 
 Selects the combo with highest success rate (at least 5 hits) from 100k simulations.
 
+**v2.0 GPU Optimization:** Uses PyTorch tensors and matrix multiplication for batch evaluation, achieving significant speedup on NVIDIA GPUs.
+
 ### Final Output
 
-`prediction_results.json` - Full results
+**Generated files:**
 
-`optimized_report.txt` - Human-readable recommendations
+- `output/final_prediction.json` - Full results with best Pick'Em combination
+- `output/optimized_report.txt` - Human-readable recommendations
+- `output/intermediate_sim_data.json` - Cached simulation data (from step 1)
+- `gpu_checkpoint.json` - Auto-saved progress (can resume if interrupted)
 
-`checkpoint_*.json` - Auto-saved progress
+**Notes:**
 
-
-Note: Each team needs at least 10 historical matches for reliable predictions, and you must delete checkpoint files if you want to start from scratch
+- Each team needs at least 10 historical matches for reliable predictions
+- Delete `gpu_checkpoint.json` if you want to restart optimization from scratch
+- The two-step design allows you to rerun step 2 with different settings without regenerating simulations
+- Old v1.0 single-file version is preserved as `cs2_swiss_predictor_old.py`
 
 Finally, this project is inspired by [claabs/cs-buchholz-simulator](https://github.com/claabs/cs-buchholz-simulator)

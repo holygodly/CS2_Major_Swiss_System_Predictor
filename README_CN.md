@@ -4,7 +4,9 @@
 
 本项目是用 ELO + Monte Carlo 模拟 + Valve 官方 Buchholz 配对规则预测 CS2 Major 瑞士轮结果。
 
-其实就是跑10万次瑞士轮模拟,然后暴力搜索1000万种 Pick'Em 组合,找出最优预测方案。基于历史比赛数据计算队伍评分。16核大概跑20小时,可以断点续传。
+其实就是跑10万次瑞士轮模拟,然后暴力搜索1000万种 Pick'Em 组合,找出最优预测方案。基于历史比赛数据计算队伍评分。
+
+**v2.0 支持 GPU 加速**: 比 v1.0 的 16 核 CPU 快了几十倍 (感谢**[Tenzray](https://github.com/Tenzray)** 大佬的PR)。
 
 ## 数据格式(必须按照下面这种格式改场次和队伍数据)
 
@@ -36,9 +38,36 @@ Team B,95,+180,1.06,1.07
 
 只有 `team` 和 `Rating` 这两列有用。想要更准确的初始评分可以去 HLTV.org 抓最新数据。
 
-## 怎么用？
+## 使用方法
 
-编辑 `cs2_swiss_predictor.py`  (目前里面的队伍名只是举例，按照实际情况改)：
+### 1. 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+**注意：** 如果要用 GPU 加速，确保已安装 CUDA。PyTorch 会自动检测并使用 GPU。
+
+### 2. 配置模拟参数
+
+编辑 `batchsize.yaml` 调整性能：
+
+```yaml
+simulation:
+  num_simulations: 500  # 蒙特卡洛模拟次数
+
+performance:
+  eval_batch_size: 5000  # 根据显存大小调整
+  save_every: 1000000    # 检查点保存频率
+
+device:
+  use_gpu: true          # true 用 GPU，false 用 CPU
+  gpu_id: 0              # GPU 设备 ID（通常是 0）
+```
+
+### 3. 编辑队伍数据
+
+编辑 `cs2_gen_preresult.py` (目前里面的队伍名只是举例，按照实际情况改)：
 
 ```python
 TEAMS = [
@@ -54,12 +83,22 @@ ROUND1_MATCHUPS = [
 ]
 ```
 
-手动输入stage X 的参赛队伍以及第一轮谁打谁。一定要注意顺序！ROUND1_MATCHUPS 的顺序决定了 Buchholz 配对的初始种子。
+手动输入 stage X 的参赛队伍以及第一轮谁打谁。一定要注意顺序！ROUND1_MATCHUPS 的顺序决定了 Buchholz 配对的初始种子。
 
-然后运行：
+### 4. 运行两步流程
+
+**第一步：生成模拟数据**
 
 ```bash
-python cs2_swiss_predictor.py
+python cs2_gen_preresult.py
+```
+
+会生成 `output/intermediate_sim_data.json`，包含 10 万次瑞士轮模拟结果。
+
+**第二步：GPU 加速的 Pick'Em 优化**
+
+```bash
+python cs2_gen_final.py
 ```
 
 ## 核心逻辑
@@ -91,15 +130,22 @@ python cs2_swiss_predictor.py
 
 选出在 10 万次模拟里成功率最高（至少命中 5 个）的方案。
 
+**v2.0 GPU 优化：** 使用 PyTorch 张量和矩阵乘法进行批量评估，在 NVIDIA GPU 上实现 24 倍加速。
+
 ### 最终输出
 
-`prediction_results.json` - 完整结果
+**生成的文件：**
 
-`optimized_report.txt` - 人类可读的推荐方案
+- `output/final_prediction.json` - 完整结果，包含最佳 Pick'Em 组合
+- `output/optimized_report.txt` - 人类可读的推荐方案
+- `output/intermediate_sim_data.json` - 缓存的模拟数据（来自第一步）
+- `gpu_checkpoint.json` - 自动保存的进度（可断点续传）
 
-`checkpoint_*.json` - 自动保存的进度
+**注意事项：**
 
-
-注意：每支队伍至少 10 场历史比赛才能有靠谱的预测，并且想从头开始就必须删掉 checkpoint 文件
+- 每支队伍至少需要 10 场历史比赛才能得到可靠的预测
+- 如果想从头开始优化，删除 `gpu_checkpoint.json` 即可
+- 两步设计允许你修改配置后重跑第二步，无需重新生成模拟数据
+- 旧版 v1.0 单文件版本保留为 `cs2_swiss_predictor_old.py`
 
 最后，本项目参考了 [claabs/cs-buchholz-simulator](https://github.com/claabs/cs-buchholz-simulator)
