@@ -1,0 +1,17 @@
+simulation:
+  num_simulations: 500 #多少次模拟赛
+
+performance:
+  eval_batch_size: 5000  # 根据显存调整
+  save_every: 1000000     # 每处理100万个组合保存一次进度
+
+device:
+  # 是否开启 GPU 加速
+  # true: 使用 CUDA
+  # false: 强制使用 CPU
+  use_gpu: true
+
+  # 显卡 ID
+  # 如果你只有一张显卡，填 0
+  # 如果有多张，填对应的索引 (0, 1, 2...)
+  gpu_id: 0

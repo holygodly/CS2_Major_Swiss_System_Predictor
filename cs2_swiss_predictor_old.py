@@ -707,7 +707,7 @@ def main():
     
     print("\n[1/5] 加载外部数据...")
     print(f"  - 读取历史比赛: {MATCHES_FILE}")
-    matches_df = pd.read_csv(MATCHES_FILE, header=None,
+    matches_df = pd.read_csv(MATCHES_FILE, header=0,
                              names=['date', 'team1', 'score1', 'score2', 'team2', 'tournament', 'format'])
     matches_df['date'] = pd.to_datetime(matches_df['date'])
     print(f"    ✓ 加载 {len(matches_df)} 场历史比赛")
