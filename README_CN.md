@@ -26,7 +26,7 @@ date,team1,score1,score2,team2,tournament,format
 - `tournament`: 赛事名（随便写,只是标记用）
 - `format`: `bo1`、`bo3` 或 `bo5`
 
-### `data/战队属性.txt`（可选）
+### `data/hltv_ratings.txt`（可选）
 
 带表头的 CSV,HLTV 评分：
 
@@ -37,6 +37,8 @@ Team B,95,+180,1.06,1.07
 ```
 
 只有 `team` 和 `Rating` 这两列有用。想要更准确的初始评分可以去 HLTV.org 抓最新数据。
+
+**注意：** 仓库里实际的文件名是 `hltv_ratings.txt`（不是 `战队属性.txt`）。
 
 ## 使用方法
 

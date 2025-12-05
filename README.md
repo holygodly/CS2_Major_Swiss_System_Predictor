@@ -26,7 +26,7 @@ date,team1,score1,score2,team2,tournament,format
 - `tournament`: Tournament name (just for reference, write whatever)
 - `format`: `bo1`, `bo3`, or `bo5`
 
-### `data/战队属性.txt` (optional)
+### `data/hltv_ratings.txt` (optional)
 
 CSV with header, HLTV ratings:
 
@@ -37,6 +37,8 @@ Team B,95,+180,1.06,1.07
 ```
 
 Only `team` and `Rating` columns matter. Grab latest ratings from HLTV.org if you want more accurate initial values.
+
+**Note:** The actual filename in the repository is `hltv_ratings.txt` (not `战队属性.txt`).
 
 ## Usage
 
