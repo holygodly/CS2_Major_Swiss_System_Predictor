@@ -6,7 +6,14 @@
 
 其实就是跑10万次瑞士轮模拟,然后暴力搜索1000万种 Pick'Em 组合,找出最优预测方案。基于历史比赛数据计算队伍评分。
 
-**v2.0 支持 GPU 加速**: 比 v1.0 的 16 核 CPU 快了几十倍 (感谢**[Tenzray](https://github.com/Tenzray)** 大佬的PR)。
+## 🚀 两个版本
+
+| 版本 | 文件 | 特点 | 适用场景 |
+|------|------|------|----------|
+| **GPU版 (推荐)** | `cs2_gen_preresult.py` + `cs2_gen_final.py` | PyTorch GPU加速，两步流程 | 有NVIDIA显卡，追求速度 |
+| **CPU版** | `cs2_swiss_predictor_cpu.py` | 多进程并行，单文件完整流程 | 无显卡，或想要简单使用 |
+
+**GPU版 v2.0**: 比 CPU版快几十倍 (感谢**[Tenzray](https://github.com/Tenzray)** 大佬的PR)
 
 ## 数据格式(必须按照下面这种格式改场次和队伍数据)
 
@@ -38,7 +45,10 @@ Team B,95,+180,1.06,1.07
 
 只有 `team` 和 `Rating` 这两列有用。想要更准确的初始评分可以去 HLTV.org 抓最新数据。
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> ec0c6c3 (feat: add SEEDED_TEAMS config, form variance, CPU version)
 ## 使用方法
 
 ### 1. 安装依赖
@@ -72,7 +82,7 @@ device:
 
 ```python
 TEAMS = [
-    "FURIA", "Natus Vincere", "Vitality", "FaZe", 
+    "FURIA", "Natus Vincere", "Vitality", "FaZe",
     "Falcons", "B8", "The MongolZ", "Imperial",
     # ... 一共 16 支队伍
 ]
@@ -147,6 +157,21 @@ python cs2_gen_final.py
 - 每支队伍至少需要 10 场历史比赛才能得到可靠的预测
 - 如果想从头开始优化，删除 `gpu_checkpoint.json` 即可
 - 两步设计允许你修改配置后重跑第二步，无需重新生成模拟数据
-- 旧版 v1.0 单文件版本保留为 `cs2_swiss_predictor_old.py`
+
+## CPU 版本使用方法
+
+如果没有 NVIDIA 显卡，可以使用 CPU 多进程版本：
+
+```bash
+python cs2_swiss_predictor_cpu.py
+```
+
+CPU 版本特点：
+- 单文件完整流程（模拟 + 优化一步完成）
+- 16 进程并行计算
+- 支持断点续传
+- 预计用时：约 20 小时（完整搜索 1000 万组合）
+
+---
 
 最后，本项目参考了 [claabs/cs-buchholz-simulator](https://github.com/claabs/cs-buchholz-simulator)

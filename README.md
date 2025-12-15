@@ -21,7 +21,7 @@ date,team1,score1,score2,team2,tournament,format
 ```
 
 - `date`: YYYY-MM-DD format
-- `team1`, `team2`: Team names (must match your TEAMS list in code)
+- `team1`, `team2`: Team names (must match your SEEDED_TEAMS list in code)
 - `score1`, `score2`: Match scores
 - `tournament`: Tournament name (just for reference, write whatever)
 - `format`: `bo1`, `bo3`, or `bo5`
@@ -66,25 +66,21 @@ device:
   gpu_id: 0              # GPU device ID (usually 0)
 ```
 
-### 3. Edit team data
+### 3. Edit seed rankings
 
 Edit `cs2_gen_preresult.py` (current team names are just examples, change based on actual situation):
 
 ```python
-TEAMS = [
-    "FURIA", "Natus Vincere", "Vitality", "FaZe", 
-    "Falcons", "B8", "The MongolZ", "Imperial",
-    # ... 16 teams total
-]
-
-ROUND1_MATCHUPS = [
-    ("FURIA", "Natus Vincere"),
-    ("Vitality", "FaZe"),
-    # ... 8 matchups total
+SEEDED_TEAMS = [
+    "FURIA",          # Seed 1
+    "Vitality",       # Seed 2
+    # ... 16 teams total, in seed order
 ]
 ```
 
-Manually input stage X participating teams and round 1 matchups. Order matters! ROUND1_MATCHUPS defines initial seeds for Buchholz pairing.
+Just fill in seed rankings. Round 1 matchups auto-generate based on Valve rules (1v9, 2v10, 3v11, ...).
+
+Program will show generated schedule for confirmation before running.
 
 ### 4. Run two-step workflow
 
@@ -109,9 +105,10 @@ python cs2_gen_final.py
 Standard ELO with some improvements:
 
 - Time decay (50-day half-life) - old matches weighted less
-- Format weights: BO1=1.0, BO3=1.2, BO5=1.5 (theoretically should be fine)
+- Format weights: BO1=1.0, BO3=1.2, BO5=1.5
 - Adaptive K-factor: starts at K=50 for quick adjustment, drops to K=30 after 30 matches
 - Blends HLTV ratings with historical data (more history = less HLTV weight)
+- Form variance: BO1 ±60, BO3 ±35, BO5 ±20 ELO random fluctuation per match (simulates upsets)
 
 Win probability: `P = 1 / (1 + 10^((rating2-rating1)/400))`
 
@@ -147,6 +144,6 @@ Selects the combo with highest success rate (at least 5 hits) from 100k simulati
 - Each team needs at least 10 historical matches for reliable predictions
 - Delete `gpu_checkpoint.json` if you want to restart optimization from scratch
 - The two-step design allows you to rerun step 2 with different settings without regenerating simulations
-- Old v1.0 single-file version is preserved as `cs2_swiss_predictor_old.py`
+- CPU version `cs2_swiss_predictor_cpu.py` available for users without GPU
 
 Finally, this project is inspired by [claabs/cs-buchholz-simulator](https://github.com/claabs/cs-buchholz-simulator)

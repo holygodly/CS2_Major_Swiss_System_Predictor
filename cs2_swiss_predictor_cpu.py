@@ -3,7 +3,7 @@ CS2 Major 瑞士轮预测系统（通用版）
 核心功能：
 1. 自适应ELO系统：根据样本量动态调整权重
 2. Buchholz配对算法：完整实现瑞士轮配对规则
-3. 布尔数组优化：预计算10万次模拟，实现230x加速
+3. 布尔数组优化：预计算10万次模拟，实现加速
 4. 多进程并行：绕过GIL限制，支持断点续传
 5. Pick'Em优化器：暴力搜索1000万组合空间
 详细说明见 README.md
@@ -28,40 +28,42 @@ pd = None
 # 配置区域（直接修改此处配置）
 # ============================================================================
 
-# 参赛战队（16支队伍）
-# ⚠️ 重要：TEAMS 列表的顺序就是初始种子排序（种子1到种子16）
-# 种子顺序用于后续轮次的 Buchholz 配对，请确保按照实际的初始种子顺序排列！
-TEAMS = [
+# ============================================================================
+# 种子排名配置（⚠️ 必须手动填写！）
+# ============================================================================
+# 说明：
+#   1. 按照官方公布的种子排名填写 16 支队伍
+#   2. 列表顺序就是种子顺序：第1个=种子1，第2个=种子2，...，第16个=种子16
+#   3. 程序会自动根据 Valve 规则生成第一轮配对：1v9, 2v10, 3v11, ...
+#   4. 种子排名用于后续轮次的 Buchholz 配对 tie-breaker
+SEEDED_TEAMS = [
+    # 高种子 (1-8)
     "FURIA",          # 种子1
-    "Natus Vincere",  # 种子2
-    "Vitality",       # 种子3
-    "FaZe",           # 种子4
-    "Falcons",        # 种子5
-    "B8",             # 种子6
-    "The MongolZ",    # 种子7
-    "Imperial",       # 种子8
-    "MOUZ",           # 种子9
-    "PARIVISION",     # 种子10
-    "Spirit",         # 种子11
-    "Liquid",         # 种子12
-    "G2",             # 种子13
-    "Passion UA",     # 种子14
-    "paiN",           # 种子15
+    "Vitality",       # 种子2
+    "Falcons",        # 种子3
+    "The MongolZ",    # 种子4
+    "MOUZ",           # 种子5
+    "Spirit",         # 种子6
+    "G2",             # 种子7
+    "paiN",           # 种子8
+    # 低种子 (9-16)
+    "Natus Vincere",  # 种子9
+    "FaZe",           # 种子10
+    "B8",             # 种子11
+    "Imperial",       # 种子12
+    "PARIVISION",     # 种子13
+    "Liquid",         # 种子14
+    "Passion UA",     # 种子15
     "3DMAX"           # 种子16
 ]
 
-# 第一轮对局配对（8场BO1）- 根据实际赛程手动输入
-# ⚠️ 重要：请根据官方公布的实际赛程填写第一轮对阵
-# 注意：队伍名称必须与上面 TEAMS 列表中的名称完全一致
+# 参赛战队列表（从种子列表提取）
+TEAMS = SEEDED_TEAMS.copy()
+
+# 第一轮对局配对（自动根据 Valve 规则生成：种子1v9, 2v10, 3v11, ...）
+# 无需手动修改！
 ROUND1_MATCHUPS = [
-    ("FURIA", "Natus Vincere"),           # Match 1
-    ("Vitality", "FaZe"),                 # Match 2
-    ("Falcons", "B8"),                    # Match 3
-    ("The MongolZ", "Imperial"),          # Match 4
-    ("MOUZ", "PARIVISION"),               # Match 5
-    ("Spirit", "Liquid"),                 # Match 6
-    ("G2", "Passion UA"),                 # Match 7
-    ("paiN", "3DMAX")                     # Match 8
+    (SEEDED_TEAMS[i], SEEDED_TEAMS[i + 8]) for i in range(8)
 ]
 
 # 外部数据文件路径
@@ -73,10 +75,19 @@ BASE_ELO = 1000
 BASE_K_FACTOR = 40
 TIME_DECAY_DAYS = 50
 
+# 状态波动参数（模拟选手临场状态，增加爆冷可能性）
+# 使用正态分布，mean=0，标准差如下：
+FORM_VARIANCE_BO1 = 60   # BO1 波动较大（单图随机性高）
+FORM_VARIANCE_BO3 = 35   # BO3 波动较小（多局更稳定）
+FORM_VARIANCE_BO5 = 20   # BO5 波动最小（实力更能体现）
+
 # 模拟和优化参数
 NUM_SIMULATIONS = 100000  # Monte Carlo模拟次数
 MAX_WORKERS = 16  # 多进程worker数量
 CHECKPOINT_INTERVAL = 200  # 断点保存间隔
+
+# 全局变量：存储种子排名（在main中初始化）
+TEAM_SEEDS = {}
 
 # ============================================================================
 # 函数定义
@@ -236,22 +247,42 @@ def calculate_elo_ratings(matches_df, initial_ratings, base_k_factor=40, time_de
 # 核心函数：比赛胜率预测
 # ============================================================================
 
-def predict_match(team1, team2, ratings, bo_format='bo1'):
+def predict_match(team1, team2, ratings, bo_format='bo1', apply_form_variance=True):
     """
-    预测比赛胜率（基于ELO差值）
+    预测比赛胜率（基于ELO差值 + 状态波动）
     
-    BO1不确定性调整：
-    - BO1：胜率向50%收缩15%（更保守）
-    - BO3/BO5：使用原始ELO胜率
+    参数：
+    - team1, team2: 对阵双方
+    - ratings: ELO 评分字典
+    - bo_format: 比赛格式 ('bo1', 'bo3', 'bo5')
+    - apply_form_variance: 是否应用状态波动（模拟爆冷/黑马）
     """
     r1, r2 = ratings.get(team1, 1000), ratings.get(team2, 1000)
-    base_prob1 = 1 / (1 + math.pow(10, (r2 - r1) / 400))
     
+    # 应用状态波动（临时 ELO 调整）
+    if apply_form_variance:
+        if bo_format == 'bo1':
+            variance = FORM_VARIANCE_BO1
+        elif bo_format == 'bo3':
+            variance = FORM_VARIANCE_BO3
+        else:  # bo5
+            variance = FORM_VARIANCE_BO5
+        
+        # 正态分布随机波动，mean=0
+        form1 = random.gauss(0, variance)
+        form2 = random.gauss(0, variance)
+        r1 += form1
+        r2 += form2
+    
+    # 计算胜率
+    base_prob1 = 1 / (1 + math.pow(10, (r2 - r1) / 400))
+
+    # BO1 额外压缩胜率（向 50% 靠拢）
     if bo_format == 'bo1':
         prob1 = 0.5 + (base_prob1 - 0.5) * 0.85
     else:
         prob1 = base_prob1
-    
+
     return prob1, 1 - prob1
 
 
@@ -314,7 +345,8 @@ def simulate_full_swiss(ratings, num_simulations=100000):
                         diff += (opp_wins - opp_losses)
                     difficulty[team] = diff
                 
-                teams.sort(key=lambda t: (-difficulty[t], TEAMS.index(t)))
+                # Buchholz 排序：1. Difficulty Score (降序) 2. 初始种子 (升序)
+                teams.sort(key=lambda t: (-difficulty[t], TEAM_SEEDS.get(t, 999)))
                 
                 # Round 2-3: 最高种子 vs 最低种子（避免重复对阵）
                 if round_num in [2, 3]:
@@ -696,14 +728,77 @@ def optimize_pickem_with_pruning(probabilities, all_simulations, max_workers=16)
 
 
 # ============================================================================
+# 种子初始化和赛程确认
+# ============================================================================
+
+def get_team_seeds():
+    """从 SEEDED_TEAMS 列表获取种子排名"""
+    team_seeds = {}
+    for idx, team in enumerate(SEEDED_TEAMS):
+        team_seeds[team] = idx + 1
+    
+    print("\n[种子] 官方种子排名：")
+    for team, seed in team_seeds.items():
+        print(f"  种子{seed:2d}: {team}")
+    
+    print("\n[配对] 第一轮自动生成的对阵（Valve规则：1v9, 2v10, ...）：")
+    for i, (team1, team2) in enumerate(ROUND1_MATCHUPS, 1):
+        seed1 = team_seeds[team1]
+        seed2 = team_seeds[team2]
+        print(f"  Match {i}: {team1} (种子{seed1}) vs {team2} (种子{seed2})")
+    
+    return team_seeds
+
+
+def confirm_round1_matchups():
+    """显示第一轮赛程并让用户确认"""
+    print("\n" + "=" * 60)
+    print("📋 第一轮赛程确认（请与官方赛程对照）")
+    print("=" * 60)
+    
+    print("\n根据您配置的种子排名，第一轮对阵如下：")
+    print("-" * 50)
+    
+    for i, (team1, team2) in enumerate(ROUND1_MATCHUPS, 1):
+        seed1 = SEEDED_TEAMS.index(team1) + 1
+        seed2 = SEEDED_TEAMS.index(team2) + 1
+        print(f"Match {i:<2} {team1:<20} vs   {team2:<20}")
+        print(f"        (种子{seed1})                    (种子{seed2})")
+    
+    print("-" * 50)
+    print("\n⚠️  请仔细核对以上对阵是否与官方公布的第一轮赛程一致！")
+    
+    while True:
+        user_input = input("赛程是否正确？(yes/no): ").strip().lower()
+        if user_input in ['yes', 'y', '是', 'ok']:
+            print("\n✅ 已确认，继续执行...\n")
+            return True
+        elif user_input in ['no', 'n', '否', 'cancel']:
+            print("\n❌ 已取消。请修改 SEEDED_TEAMS 列表后重新运行。")
+            return False
+        else:
+            print("请输入 yes 或 no")
+
+
+# ============================================================================
 # 主流程
 # ============================================================================
 
 def main():
+    global TEAM_SEEDS
+    
     print("=" * 60)
-    print("CS2 Major 瑞士轮预测系统（通用版）")
+    print("CS2 Major 瑞士轮预测系统（CPU版）")
     print("=" * 60)
     print(f"[LOG] {datetime.now().strftime('%H:%M:%S')} - 程序启动", flush=True)
+    
+    # 初始化种子排名
+    print("\n[0/5] 加载种子排名...")
+    TEAM_SEEDS = get_team_seeds()
+    
+    # 确认第一轮赛程
+    if not confirm_round1_matchups():
+        sys.exit(0)
     
     print("\n[1/5] 加载外部数据...")
     print(f"  - 读取历史比赛: {MATCHES_FILE}")
